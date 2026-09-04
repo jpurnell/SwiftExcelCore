@@ -67,14 +67,22 @@ parses `=VLOOKUP(...)` both need `CellRef` and `CellValue`; neither needs the ot
 
 ## Current Status
 
-**Pre-release.** Scaffolded 2026-09-04. The types exist today inside SwiftXLSX and move here
-unchanged; this is an extraction, not a design exercise.
+**v0.1.0 — released 2026-09-04.** The extraction is done.
 
-- [ ] Extract the types listed above from SwiftXLSX, unchanged
-- [ ] Port their tests
-- [ ] Quality gate 0/0
-- [ ] Tag `v0.1.0`
+- [x] Extract the types listed above from SwiftXLSX, unchanged
+- [x] Port their tests — 170 passing
+- [x] Quality gate 0 errors / 0 warnings, 45/45 checkers
+- [x] Tag `v0.1.0`
 - [ ] SwiftXLSX `0.12.0` depends on it
+
+Two corrections the extraction forced, both recorded because they were errors in the plan rather
+than in the code:
+
+- **`EvalError` does not belong here.** It is internal to evaluation and documented as mapped to
+  `ExcelError` at the boundary, which makes it the function library's business. It stayed in
+  SwiftXLSX and travels with the functions to SwiftExcelFunctions.
+- **`CellValueProvider` was one file holding two things** — the protocol, and a `Workbook`-backed
+  conformance that cannot live here. The protocol moved; the conformance split out and stayed.
 
 ---
 
