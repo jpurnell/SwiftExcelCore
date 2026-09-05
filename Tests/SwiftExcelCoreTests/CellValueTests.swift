@@ -117,26 +117,26 @@ final class CellValueTests: XCTestCase {
     // MARK: - Array values
 
     func testArrayResolved() {
-        let value = CellValue.array([.number(1), .number(2), .number(3)])
-        XCTAssertEqual(value.resolved, .array([.number(1), .number(2), .number(3)]))
+        let value = CellValue.array(CellMatrix(row: [.number(1), .number(2), .number(3)]))
+        XCTAssertEqual(value.resolved, .array(CellMatrix(row: [.number(1), .number(2), .number(3)])))
     }
 
     func testEmptyArrayResolved() {
-        let value = CellValue.array([])
-        XCTAssertEqual(value.resolved, .array([]))
+        let value = CellValue.array(CellMatrix(row: []))
+        XCTAssertEqual(value.resolved, .array(CellMatrix(row: [])))
     }
 
     func testMixedArray() {
-        let value = CellValue.array([.number(1), .text("a"), .bool(true)])
-        XCTAssertEqual(value.resolved, .array([.number(1), .text("a"), .bool(true)]))
+        let value = CellValue.array(CellMatrix(row: [.number(1), .text("a"), .bool(true)]))
+        XCTAssertEqual(value.resolved, .array(CellMatrix(row: [.number(1), .text("a"), .bool(true)])))
     }
 
     func testArrayIsNotFormula() {
-        XCTAssertFalse(CellValue.array([.number(1)]).isFormula)
+        XCTAssertFalse(CellValue.array(CellMatrix(row: [.number(1)])).isFormula)
     }
 
     func testArrayFormulaASTIsNil() {
-        XCTAssertNil(CellValue.array([]).formulaAST)
+        XCTAssertNil(CellValue.array(CellMatrix(row: [])).formulaAST)
     }
 
     // MARK: - Equatable

@@ -9,7 +9,11 @@ public enum CellValue: Equatable, Hashable, Sendable {
     indirect case formula(FormulaAST, cached: CellValue?)
     case date(Date)
     case blank
-    indirect case array([CellValue])
+    /// A rectangle of values, keeping its own dimensions.
+    ///
+    /// Shaped rather than flat: see ``CellMatrix`` for why a range that forgets
+    /// its width cannot be read back correctly.
+    indirect case array(CellMatrix)
 
     /// The resolved value; returns cached value for formulas, self otherwise.
     public var resolved: CellValue {
