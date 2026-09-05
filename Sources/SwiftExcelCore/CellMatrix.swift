@@ -154,6 +154,55 @@ public struct CellMatrix: Equatable, Hashable, Sendable {
 
     // MARK: - Transforming
 
+    /// The rectangle this result becomes when one formula fills a span.
+    ///
+    /// A formula entered over a range evaluates once and its result fills the
+    /// whole rectangle. The result's shape and the span's shape need not agree, and
+    /// Excel reconciles them in three ways, all of them here:
+    ///
+    /// - **Broadcast.** A dimension of 1 repeats. A single row fills every row of
+    ///   the span, a single column every column, and a lone value fills all of it —
+    ///   which is why a scalar entered as an array formula appears everywhere at
+    ///   once.
+    /// - **Pad.** A cell the result cannot reach is `#N/A`. Not blank: blank is a
+    ///   value the result could have held, and this is the absence of one.
+    /// - **Truncate.** A result larger than the span loses what does not fit.
+    ///
+    /// A blank *inside* the result stays blank. Only cells beyond the result's
+    /// reach become `#N/A`, which is the distinction that makes a spilled rectangle
+    /// readable: `#N/A` means "the formula had nothing for this cell."
+    ///
+    /// ```swift
+    /// let row = CellMatrix(row: [.number(1), .number(2)])
+    /// row.spilled(toRows: 2, columns: 3).elements
+    /// // [1, 2, #N/A,
+    /// //  1, 2, #N/A]
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - rows: The span's row count. Negative counts as zero.
+    ///   - columns: The span's column count. Negative counts as zero.
+    /// - Returns: A rectangle of exactly the requested shape.
+    public func spilled(toRows rows: Int, columns: Int) -> CellMatrix {
+        let height = Swift.max(rows, 0)
+        let width = Swift.max(columns, 0)
+        guard height > 0, width > 0 else { return CellMatrix(row: []) }
+
+        var result: [CellValue] = []
+        result.reserveCapacity(height * width)
+        for row in 0..<height {
+            // A single row repeats down; a single column repeats across. Anything
+            // else keeps its own index and runs out.
+            let sourceRow = self.rows == 1 ? 0 : row
+            for column in 0..<width {
+                let sourceColumn = self.columns == 1 ? 0 : column
+                result.append(element(row: sourceRow, column: sourceColumn) ?? .error(.na))
+            }
+        }
+        return CellMatrix(elements: result, rows: height, columns: width)
+            ?? CellMatrix(row: [])
+    }
+
     /// The matrix with rows and columns exchanged.
     ///
     /// What `TRANSPOSE` computes. Iterative rather than recursive, and total: every

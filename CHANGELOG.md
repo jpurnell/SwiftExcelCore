@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-05
+
+### Added
+
+- **`CellMatrix.spilled(toRows:columns:)`** — the rectangle a result becomes when
+  one formula fills a span.
+
+  A formula entered over a range evaluates once and its result fills the whole
+  rectangle, whose shape need not match. Excel reconciles the two by broadcasting a
+  dimension of 1, padding what the result cannot reach with `#N/A`, and truncating
+  what does not fit. All three are here, as a pure function of the two shapes.
+
+  A blank *inside* the result stays blank; only cells beyond its reach become
+  `#N/A`. That distinction is what makes a spilled rectangle readable — `#N/A`
+  means "the formula had nothing for this cell", which is not the same as "the
+  formula produced an empty one".
+
 ## [0.4.0] - 2026-09-05
 
 ### Changed
@@ -155,6 +172,7 @@ Foundation only, and intended to stay that way: three packages depend on this on
 dependency taken here is taken by all of them.
 
 [Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...HEAD
+[0.5.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jpurnell/SwiftExcelCore/releases/tag/v0.2.0

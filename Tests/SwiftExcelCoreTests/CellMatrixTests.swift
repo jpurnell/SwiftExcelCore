@@ -180,4 +180,94 @@ final class CellMatrixTests: XCTestCase {
         }
         XCTAssertEqual(recovered, inner)
     }
+
+    // MARK: - Spilling
+
+    // One formula fills a rectangle. When the result's shape and the span's shape
+    // disagree, Excel broadcasts a vector, pads what it cannot fill with #N/A, and
+    // truncates what does not fit.
+
+    func testAnExactFitIsUnchanged() throws {
+        let matrix = try XCTUnwrap(
+            CellMatrix(elements: [.number(1), .number(2), .number(3),
+                                  .number(4), .number(5), .number(6)],
+                       rows: 2, columns: 3))
+        XCTAssertEqual(matrix.spilled(toRows: 2, columns: 3), matrix)
+    }
+
+    /// A single value fills the whole span — the commonest case, and the reason a
+    /// scalar entered as an array formula shows up everywhere at once.
+    func testASingleValueFillsTheSpan() {
+        let filled = CellMatrix(single: .number(7)).spilled(toRows: 2, columns: 3)
+        XCTAssertEqual(filled.rows, 2)
+        XCTAssertEqual(filled.columns, 3)
+        XCTAssertEqual(filled.elements, Array(repeating: .number(7), count: 6))
+    }
+
+    /// A row repeats downwards.
+    func testARowBroadcastsDown() throws {
+        let row = CellMatrix(row: [.number(1), .number(2)])
+        let filled = row.spilled(toRows: 3, columns: 2)
+        XCTAssertEqual(filled.rows, 3)
+        XCTAssertEqual(filled.columns, 2)
+        XCTAssertEqual(filled.elements, [.number(1), .number(2),
+                                         .number(1), .number(2),
+                                         .number(1), .number(2)])
+    }
+
+    /// A column repeats across.
+    func testAColumnBroadcastsAcross() {
+        let column = CellMatrix(column: [.number(1), .number(2)])
+        let filled = column.spilled(toRows: 2, columns: 3)
+        XCTAssertEqual(filled.elements, [.number(1), .number(1), .number(1),
+                                         .number(2), .number(2), .number(2)])
+    }
+
+    /// What cannot be filled is `#N/A`, which is what Excel shows.
+    func testAShortResultPadsWithNotAvailable() throws {
+        let block = try XCTUnwrap(
+            CellMatrix(elements: [.number(1), .number(2), .number(3), .number(4)],
+                       rows: 2, columns: 2))
+        let filled = block.spilled(toRows: 3, columns: 3)
+        XCTAssertEqual(filled[0, 0], .number(1))
+        XCTAssertEqual(filled[0, 2], .error(.na), "no third column to take from")
+        XCTAssertEqual(filled[2, 0], .error(.na), "no third row to take from")
+    }
+
+    /// What does not fit is dropped.
+    func testALongResultIsTruncated() throws {
+        let block = try XCTUnwrap(
+            CellMatrix(elements: [.number(1), .number(2), .number(3),
+                                  .number(4), .number(5), .number(6)],
+                       rows: 2, columns: 3))
+        let filled = block.spilled(toRows: 1, columns: 2)
+        XCTAssertEqual(filled.rows, 1)
+        XCTAssertEqual(filled.columns, 2)
+        XCTAssertEqual(filled.elements, [.number(1), .number(2)])
+    }
+
+    /// A vector only broadcasts along the dimension that is 1. A 1×2 row into a
+    /// 3×3 span repeats down but has no third column to offer.
+    func testBroadcastAndPadTogether() {
+        let filled = CellMatrix(row: [.number(1), .number(2)]).spilled(toRows: 2, columns: 3)
+        XCTAssertEqual(filled.elements, [.number(1), .number(2), .error(.na),
+                                         .number(1), .number(2), .error(.na)])
+    }
+
+    func testSpillingNothingIsAllNotAvailable() throws {
+        let empty = try XCTUnwrap(CellMatrix(elements: [], rows: 0, columns: 0))
+        let filled = empty.spilled(toRows: 2, columns: 2)
+        XCTAssertEqual(filled.elements, Array(repeating: .error(.na), count: 4))
+    }
+
+    func testSpillingToNothingIsEmpty() {
+        XCTAssertTrue(CellMatrix(single: .number(1)).spilled(toRows: 0, columns: 0).isEmpty)
+    }
+
+    /// Blanks spill as blanks, not as `#N/A` — an empty cell inside a result is a
+    /// value the result has, and only cells the result cannot reach are `#N/A`.
+    func testBlanksSpillAsBlanks() {
+        let filled = CellMatrix(row: [.number(1), .blank]).spilled(toRows: 1, columns: 3)
+        XCTAssertEqual(filled.elements, [.number(1), .blank, .error(.na)])
+    }
 }

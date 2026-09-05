@@ -68,6 +68,17 @@ parses `=VLOOKUP(...)` both need `CellRef` and `CellValue`; neither needs the ot
 
 ## Current Status
 
+**v0.5.0 — released 2026-09-05.** The spill rule.
+
+- [x] `CellMatrix.spilled(toRows:columns:)` — broadcast, pad with `#N/A`, truncate
+- [x] 221 tests, gate 45/45 at 0/0
+
+The reconciliation between a result's shape and a span's, which is the one piece of
+spilling that is genuinely about *shape* rather than about files or evaluation. The
+rest lives a layer up in each direction, and neither needed a new dependency.
+
+---
+
 **v0.4.0 — released 2026-09-05.** Bounds, stated rather than guessed.
 
 - [x] `matrix(in:)` clips a grid-spanning range to where the sheet's data ends
@@ -136,15 +147,16 @@ than in the code:
 - ~~**v0.4.0** — nothing planned. The same rule applies.~~ Shipped, and it was a
   correction rather than a feature: 0.3.0's `maximumCells` was a magic number, and
   the rule that caught it is the one below.
-- **v0.5.0** — nothing planned.
+- ~~**v0.5.0** — nothing planned.~~ Shipped the spill rule, which a consumer proved it needed.
+- **v0.6.0** — nothing planned.
 
 **A threshold is a principle that has not been found yet.** `maximumCells` survived
 review, a changelog and a release before anyone asked why a number was needed at all.
 When a constant appears here, that is the question to ask first.
 
-Spilling — writing a multi-cell result back across cells — is **not** here, and is not
-planned. `CellMatrix` makes an array a value; delivering one to a range of cells is the
-evaluator's problem and belongs a layer up.
+Spilling's *rule* is here, as ``CellMatrix/spilled(toRows:columns:)`` — how a result of one
+shape fills a span of another. Delivering it to actual cells is not, and should not be: that
+needs a workbook or an evaluator, and this package has neither.
 
 Deliberately **not** planned: a value-coercion layer, a formula printer, an evaluation protocol.
 Each has an obvious home one layer up, and putting it here would make this package hard to change
@@ -152,6 +164,6 @@ for the benefit of one caller.
 
 ---
 
-**Last Updated:** 2026-09-05 — reconciled for v0.4.0; the v0.3.0 note below still stands. Earlier that day, reconciled for v0.3.0. Added `CellMatrix` to the type table,
+**Last Updated:** 2026-09-05 — reconciled for v0.5.0; earlier for v0.4.0; the v0.3.0 note below still stands. Earlier that day, reconciled for v0.3.0. Added `CellMatrix` to the type table,
 recorded why a non-extraction change cleared this package's bar, struck the v0.2.0 roadmap line
 as shipped, and stated that spilling is out of scope here.
