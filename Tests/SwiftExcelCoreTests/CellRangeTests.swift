@@ -226,4 +226,75 @@ final class CellRangeTests: XCTestCase {
         XCTAssertEqual(range.rowCount, 3)
         XCTAssertEqual(range.cells.count, 6)
     }
+
+    // MARK: - Unbounded ranges
+
+    func testRecognizesARangeRunningToTheLastRow() {
+        XCTAssertTrue(CellRange(from: CellRef("B1"),
+                                to: CellRef(column: 2, row: 1_048_576)).extendsToLastRow)
+        XCTAssertFalse(CellRange(from: "B1", to: "B500").extendsToLastRow)
+    }
+
+    /// Where it starts does not matter. `B10:B1048576` still says "to the end",
+    /// and is still a million cells.
+    func testARangeStartingPartwayDownStillReachesTheLastRow() {
+        XCTAssertTrue(CellRange(from: CellRef("B10"),
+                                to: CellRef(column: 2, row: 1_048_576)).extendsToLastRow)
+    }
+
+    func testRecognizesARangeRunningToTheLastColumn() {
+        XCTAssertTrue(CellRange(from: CellRef("A3"),
+                                to: CellRef(column: 16_384, row: 3)).extendsToLastColumn)
+        XCTAssertFalse(CellRange(from: "A3", to: "Z3").extendsToLastColumn)
+    }
+
+    /// A range written out by hand is never clipped, however sparse the sheet.
+    ///
+    /// This is the property that makes clipping safe: `COUNTBLANK(A1:B3)` is six on
+    /// an empty sheet, and a clip that answered zero would be worse than the
+    /// allocation it saved.
+    func testABoundedRangeIsNeverClipped() {
+        let range = CellRange(from: "A1", to: "B3")
+        XCTAssertEqual(range.clipped(to: CellRef("A1")), range)
+        XCTAssertEqual(range.clipped(to: nil), range)
+    }
+
+    func testAWholeColumnIsClippedToTheLastPopulatedRow() {
+        let wholeColumn = CellRange(from: CellRef("B1"), to: CellRef(column: 2, row: 1_048_576))
+        XCTAssertEqual(wholeColumn.clipped(to: CellRef("D40")),
+                       CellRange(from: CellRef("B1"), to: CellRef(column: 2, row: 40)))
+    }
+
+    func testAWholeRowIsClippedToTheLastPopulatedColumn() {
+        let wholeRow = CellRange(from: CellRef("A3"), to: CellRef(column: 16_384, row: 3))
+        XCTAssertEqual(wholeRow.clipped(to: CellRef("F40")),
+                       CellRange(from: CellRef("A3"), to: CellRef(column: 6, row: 3)))
+    }
+
+    func testAnUnboundedRangeOverAnEmptySheetIsNothing() {
+        let wholeColumn = CellRange(from: CellRef("B1"), to: CellRef(column: 2, row: 1_048_576))
+        XCTAssertNil(wholeColumn.clipped(to: nil))
+    }
+
+    /// Clipping to the grid's own last cell is how "I do not know" is spelled, and
+    /// it must change nothing.
+    func testClippingToTheGridChangesNothing() {
+        let wholeColumn = CellRange(from: CellRef("B1"), to: CellRef(column: 2, row: 1_048_576))
+        XCTAssertEqual(wholeColumn.clipped(to: .lastOnSheet), wholeColumn)
+    }
+
+    /// A limit before the range's origin leaves nothing to read.
+    func testALimitBeforeTheOriginIsNothing() {
+        let toTheBottom = CellRange(from: CellRef("B10"),
+                                    to: CellRef(column: 2, row: 1_048_576))
+        XCTAssertNil(toTheBottom.clipped(to: CellRef("B3")))
+    }
+
+    /// And one that starts partway down keeps its origin when it is clipped.
+    func testARangeStartingPartwayDownKeepsItsOrigin() {
+        let toTheBottom = CellRange(from: CellRef("B10"),
+                                    to: CellRef(column: 2, row: 1_048_576))
+        XCTAssertEqual(toTheBottom.clipped(to: CellRef("B40")),
+                       CellRange(from: CellRef("B10"), to: CellRef(column: 2, row: 40)))
+    }
 }

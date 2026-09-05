@@ -17,6 +17,16 @@ final class CellValueProviderTests: XCTestCase {
 
         func value(at ref: CellRef) -> CellValue? { stored[ref] }
 
+        func lastPopulatedCell() -> CellRef? {
+            guard let maxColumn = stored.keys.map(\.column).max(),
+                  let maxRow = stored.keys.map(\.row).max() else { return nil }
+            return CellRef(column: maxColumn, row: maxRow)
+        }
+
+        func lastPopulatedCell(inSheet: String) -> CellRef? {
+            sheets.contains(inSheet) ? lastPopulatedCell() : nil
+        }
+
         func value(at ref: CellRef, inSheet: String) -> CellValue? {
             sheets.contains(inSheet) ? stored[ref] : nil
         }
@@ -105,30 +115,80 @@ final class CellValueProviderTests: XCTestCase {
         XCTAssertEqual(matrix.elements, [.blank, .blank])
     }
 
-    // MARK: - Refusal
+    // MARK: - Whole-column ranges
 
-    /// A whole column is 1,048,576 cells and must not be materialized.
-    ///
-    /// `DependencyGraph` learned this once already. Refusing is representable —
-    /// that is what the optional return is for.
-    func testAnOversizedRangeIsRefused() {
-        let wholeColumn = CellRange(from: CellRef(column: 2, row: 1),
-                                    to: CellRef(column: 2, row: 1_048_576))
-        XCTAssertNil(SparseCells([:]).matrix(in: wholeColumn))
+    // `$B:$B` is not a request for 1,048,576 cells. It is a request for whatever is
+    // in that column, which is what `DependencyGraph` already says about the same
+    // notation. Reading it stops at the last cell the sheet actually holds.
+
+    func testAWholeColumnStopsAtTheLastPopulatedCell() throws {
+        let cells = SparseCells([
+            CellRef("A1"): .number(1),
+            CellRef("A2"): .number(2),
+            CellRef("A3"): .number(3),
+        ])
+        let wholeColumn = CellRange(from: CellRef(column: 1, row: 1),
+                                    to: CellRef(column: 1, row: 1_048_576))
+        let matrix = cells.matrix(in: wholeColumn)
+        XCTAssertEqual(matrix.count, 3, "not 1,048,576")
+        XCTAssertEqual(matrix.rows, 3)
+        XCTAssertEqual(matrix.columns, 1)
     }
 
-    func testARangeAtTheLimitIsAllowed() throws {
-        let rows = CellMatrix.maximumCells
-        let atLimit = CellRange(from: CellRef(column: 1, row: 1),
-                                to: CellRef(column: 1, row: rows))
-        let matrix = try XCTUnwrap(SparseCells([:]).matrix(in: atLimit))
-        XCTAssertEqual(matrix.count, rows)
+    /// Clipping moves the far corner only. Positions are counted from the range's
+    /// own origin, so `INDEX($A:$A, 3)` must still mean the third row.
+    func testClippingKeepsTheOrigin() throws {
+        let cells = SparseCells([
+            CellRef("A3"): .number(30),
+            CellRef("A4"): .number(40),
+        ])
+        let wholeColumn = CellRange(from: CellRef(column: 1, row: 1),
+                                    to: CellRef(column: 1, row: 1_048_576))
+        let matrix = cells.matrix(in: wholeColumn)
+        XCTAssertEqual(matrix.elements, [.blank, .blank, .number(30), .number(40)],
+                       "rows 1 and 2 are blank and still occupy their places")
     }
 
-    func testOneCellPastTheLimitIsRefused() {
-        let past = CellRange(from: CellRef(column: 1, row: 1),
-                             to: CellRef(column: 1, row: CellMatrix.maximumCells + 1))
-        XCTAssertNil(SparseCells([:]).matrix(in: past))
+    func testAWholeRowStopsAtTheLastPopulatedColumn() throws {
+        let cells = SparseCells([CellRef("A1"): .number(1), CellRef("C1"): .number(3)])
+        let wholeRow = CellRange(from: CellRef(column: 1, row: 1),
+                                 to: CellRef(column: 16_384, row: 1))
+        let matrix = cells.matrix(in: wholeRow)
+        XCTAssertEqual(matrix.count, 3)
+        XCTAssertEqual(matrix.rows, 1)
+        XCTAssertEqual(matrix.columns, 3)
+    }
+
+    /// A range entirely inside the populated area is untouched, blanks and all.
+    func testASmallRangeIsNotClipped() throws {
+        let cells = SparseCells([CellRef("A1"): .number(1), CellRef("D4"): .number(4)])
+        let matrix = cells.matrix(in: range("A1", "B2"))
+        XCTAssertEqual(matrix.rows, 2)
+        XCTAssertEqual(matrix.columns, 2)
+        XCTAssertEqual(matrix.elements, [.number(1), .blank, .blank, .blank])
+    }
+
+    /// A provider holding nothing clips to nothing rather than to the whole grid.
+    func testAnEmptySheetYieldsAnEmptyRectangle() throws {
+        let wholeColumn = CellRange(from: CellRef(column: 1, row: 1),
+                                    to: CellRef(column: 1, row: 1_048_576))
+        XCTAssertTrue(SparseCells([:]).matrix(in: wholeColumn).isEmpty)
+    }
+
+    /// A provider that does not know its bounds names the grid's last cell, and
+    /// gets exactly the range it asked for.
+    func testARangeIsTakenLiterallyWhenBoundsAreUnknown() throws {
+        struct Unbounded: CellValueProvider {
+            func value(at ref: CellRef) -> CellValue? { nil }
+            func value(at ref: CellRef, inSheet: String) -> CellValue? { nil }
+            func lastPopulatedCell() -> CellRef? { .lastOnSheet }
+            func lastPopulatedCell(inSheet: String) -> CellRef? { .lastOnSheet }
+            func values(in range: CellRange) -> [CellValue] { [] }
+            func values(in range: CellRange, inSheet: String) -> [CellValue] { [] }
+        }
+        let matrix = Unbounded().matrix(in: CellRange(from: CellRef("A1"), to: CellRef("C2")))
+        XCTAssertEqual(matrix.rows, 2)
+        XCTAssertEqual(matrix.columns, 3)
     }
 
     // MARK: - The deprecated flat read

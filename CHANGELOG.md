@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-05
+
+### Changed
+
+- **`matrix(in:)` no longer refuses large ranges, and no longer returns an optional.**
+
+  0.3.0 bounded the read with a constant, `CellMatrix.maximumCells`, chosen by
+  reasoning about the grid's dimensions. That was a threshold standing in for a
+  principle, and it answered `#VALUE!` to formulas Excel answers perfectly well.
+
+  The principle is the one SwiftXLSX's dependency graph already states about the
+  same notation: `$B:$B` is not a request for 1,048,576 cells, it is a request for
+  whatever is in column B. So a range that runs to the grid's last row or column is
+  clipped to where the sheet's data actually ends. Nothing can lie beyond the last
+  row, so a range reaching it was never describing a chosen bottom edge.
+
+  The test is structural, not a size: `CellRange.extendsToLastRow` and
+  `extendsToLastColumn`. A range written out by hand is never touched however
+  sparse the sheet, because `COUNTBLANK(A1:B3)` is six on an empty sheet and a clip
+  answering zero would be worse than the allocation it saved. The origin never
+  moves either, so `INDEX($A:$A, 3)` still means the third row.
+
+### Added
+
+- `CellValueProvider.lastPopulatedCell()` and `lastPopulatedCell(inSheet:)`.
+
+  A provider is the only party that knows where its data stops, so it is the only
+  one that can make a whole-column reference affordable. `nil` means the sheet
+  holds *nothing*; a provider that does not know its bounds says so by naming
+  `CellRef.lastOnSheet`, which clips nothing. Both states are real and lead to
+  opposite behaviour, so neither is inferred from the other.
+
+- `CellRange.clipped(to:)`, `CellRange.extendsToLastRow`,
+  `CellRange.extendsToLastColumn`, `CellRef.lastOnSheet`.
+
+### Removed
+
+- `CellMatrix.maximumCells`. There is nothing left to bound.
+
+### Breaking
+
+- `CellValueProvider` gains two requirements. Conformances must say where their
+  data stops — a dictionary-backed provider answers from its keys in three lines.
+- `matrix(in:)` returns `CellMatrix` rather than `CellMatrix?`. Callers handling
+  the refusal case can delete it.
+
 ## [0.3.0] - 2026-09-05
 
 ### Added
@@ -109,6 +155,7 @@ Foundation only, and intended to stay that way: three packages depend on this on
 dependency taken here is taken by all of them.
 
 [Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...HEAD
+[0.4.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jpurnell/SwiftExcelCore/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jpurnell/SwiftExcelCore/releases/tag/v0.1.0

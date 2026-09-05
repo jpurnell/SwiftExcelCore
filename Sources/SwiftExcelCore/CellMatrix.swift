@@ -36,20 +36,6 @@
 /// built. Every accessor is free to trust `rows` and `columns` afterwards.
 public struct CellMatrix: Equatable, Hashable, Sendable {
 
-    /// The largest rectangle that will be materialized from a range.
-    ///
-    /// Reading a range now keeps its blanks, so a sparse range costs what its
-    /// *rectangle* costs rather than what its contents do. A whole column is
-    /// 1,048,576 cells and a whole row 16,384; the first has to be refused and
-    /// the second must not be, which is what puts the bound between them.
-    ///
-    /// 2^18 — large enough for any plausible table (a 512×512 block, or 13,000
-    /// rows of 20 columns), small enough that a refused range never becomes an
-    /// allocation. `DependencyGraph` bounds its own enumeration for the same
-    /// reason at a smaller number, because it does it once per formula rather
-    /// than once per evaluation.
-    public static let maximumCells = 262_144
-
     /// The values, in row-major order: index `row * columns + column`.
     public let elements: [CellValue]
 

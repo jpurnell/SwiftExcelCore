@@ -48,6 +48,14 @@ public struct CellRef: Equatable, Hashable, Sendable {
         self.absoluteRow = absoluteRow
     }
 
+    /// The last cell of an Excel worksheet, `XFD1048576`.
+    ///
+    /// The grid's own limit: 16,384 columns by 1,048,576 rows. Naming it is how a
+    /// provider says "I do not know where my data stops" to
+    /// ``CellValueProvider/lastPopulatedCell()`` — clipping to the whole grid
+    /// clips nothing.
+    public static let lastOnSheet = CellRef(column: 16_384, row: 1_048_576)
+
     /// The string representation of this cell reference, including `$` markers.
     public var reference: String {
         var result = ""
