@@ -47,6 +47,7 @@ parses `=VLOOKUP(...)` both need `CellRef` and `CellValue`; neither needs the ot
 | Type | Why it is core |
 |---|---|
 | `CellValue` | what a cell holds — number, text, bool, error, formula, date, blank, array |
+| `CellMatrix` | a rectangle of values that knows its own width — what `.array` carries |
 | `ExcelError` | `#DIV/0!`, `#N/A`, `#REF!` — produced by evaluation, stored by the file |
 | `EvalError` | how evaluation fails, distinct from what Excel records |
 | `CellRef`, `CellRange` | where a cell is, and a rectangle of them |
@@ -66,6 +67,21 @@ parses `=VLOOKUP(...)` both need `CellRef` and `CellValue`; neither needs the ot
 ---
 
 ## Current Status
+
+**v0.3.0 — released 2026-09-05.** Shape.
+
+- [x] `CellMatrix`, and `CellValue.array` carrying it
+- [x] `CellValueProvider.matrix(in:)`, defaulted from `value(at:)`
+- [x] 198 tests, gate 45/45 at 0/0
+
+The first change here that was not an extraction, and it is worth recording why the bar was
+met. Two shipped functions were wrong — `INDEX` walked past the gaps in its own range, and
+`VLOOKUP` guessed its table's width — and both were wrong for the same reason: the type they
+read from could not say what shape it was. A defect in a shared type is the case this
+package's change budget exists for. See
+`BusinessMathExcel/project/plans/proposals/PROPOSAL_shaped_arrays.md`.
+
+---
 
 **v0.1.0 — released 2026-09-04.** The extraction is done.
 
@@ -99,8 +115,15 @@ than in the code:
 ## Roadmap
 
 - **v0.1.0** — the extraction, tests passing, gate clean.
-- **v0.2.0** — whatever the first real consumer proves is missing, and nothing that is merely
-  anticipated.
+- ~~**v0.2.0** — whatever the first real consumer proves is missing, and nothing that is merely
+  anticipated.~~ **Shipped**, twice over: `FormulaAST.missing` in 0.2.0 and `CellMatrix` in
+  0.3.0. Both were proved missing by a consumer being wrong, which is the standard this line
+  was asking for.
+- **v0.4.0** — nothing planned. The same rule applies.
+
+Spilling — writing a multi-cell result back across cells — is **not** here, and is not
+planned. `CellMatrix` makes an array a value; delivering one to a range of cells is the
+evaluator's problem and belongs a layer up.
 
 Deliberately **not** planned: a value-coercion layer, a formula printer, an evaluation protocol.
 Each has an obvious home one layer up, and putting it here would make this package hard to change
@@ -108,5 +131,6 @@ for the benefit of one caller.
 
 ---
 
-**Last Updated:** 2026-09-04 — created. Scope taken from the architecture proposal; nothing
-implemented yet.
+**Last Updated:** 2026-09-05 — reconciled for v0.3.0. Added `CellMatrix` to the type table,
+recorded why a non-extraction change cleared this package's bar, struck the v0.2.0 roadmap line
+as shipped, and stated that spilling is out of scope here.

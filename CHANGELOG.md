@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-05
+
+### Added
+
+- `CellMatrix` — a rectangle of cell values that carries its own `rows` and `columns`.
+
+  Its initializer fails unless the elements fill the rectangle exactly, so a matrix that
+  disagrees with itself cannot be built and every accessor may trust the dimensions.
+  Row-major throughout, matching `CellRange.cells`, so a range and its values agree by
+  construction rather than by convention.
+
+- `CellValueProvider.matrix(in:)` and `matrix(in:inSheet:)`, with default implementations
+  derived from `value(at:)`.
+
+  Every conforming type already has `value(at:)`, so each gets a correct shaped read
+  without writing one. Empty cells arrive as `.blank` in their own position rather than
+  closing the gap.
+
+- `CellMatrix.maximumCells` (262,144) — the bound above which a range is refused.
+
+  Keeping blanks means a sparse range now costs what its rectangle costs rather than what
+  its contents do. A whole column is 1,048,576 cells and a whole row 16,384: the first has
+  to be refused and the second must not be, which is what puts the bound between them.
+  `matrix(in:)` returns `nil` rather than allocating, so refusal is representable.
+
+### Changed
+
+- `CellValue.array` now holds a `CellMatrix` instead of a `[CellValue]`.
+
+### Deprecated
+
+- `CellValueProvider.values(in:)` and `values(in:inSheet:)`. Behaviour is unchanged —
+  they still skip blanks — but a flat read cannot preserve position, which is what
+  callers actually needed.
+
+### Breaking
+
+- `CellValue.array`'s payload type changed. Pattern matches that bind the payload
+  (`case .array(let items)`) need updating; bare `case .array:` matches are unaffected.
+
+  The reason for the change rather than an additive one: consumers had been re-deriving
+  the shape a range lost, and two derived it wrongly. `INDEX(A1:A4, 3)` over a range whose
+  second cell was empty returned the fourth value, because the blank was deleted before
+  INDEX could count past it. `VLOOKUP` guessed its table's width by testing which divisors
+  came out even, and returned `#N/A` for a four-column table asked for its third column.
+  Both were measured against the build, not predicted.
+
+  Keeping a flat `.array` beside a shaped one would have left every future consumer to
+  handle both, so the lossy representation is gone rather than deprecated.
+
 ## [0.2.0] - 2026-09-04
 
 ### Added
@@ -59,5 +109,6 @@ Foundation only, and intended to stay that way: three packages depend on this on
 dependency taken here is taken by all of them.
 
 [Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jpurnell/SwiftExcelCore/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jpurnell/SwiftExcelCore/releases/tag/v0.1.0
