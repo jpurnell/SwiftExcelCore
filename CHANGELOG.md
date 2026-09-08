@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-08
+
+### Added
+
+- **`DependencyGraph`**, moved here from SwiftXLSX.
+
+  A dependency graph over cells is a fact *about a set of cells* — which precedes
+  which — and holds identically whether they came from an `.xlsx`, a test double, a
+  generated model, or a sheet held in memory. It is built from `CellAddress` and
+  `FormulaAST`, which live here, so it belongs beside them.
+
+  Its designated initialiser is now `init(cells:provider:)`: an explicit set of
+  addresses and a `CellValueProvider`. That is what the old one already read off a
+  `Worksheet` — `sheet.name` and `sheet.cells`, a name and a dictionary from
+  reference to value — so the type was already written against this abstraction and
+  had simply never been given it.
+
+  **The cell set is supplied rather than discovered.** `CellValueProvider` answers
+  "what is at this address?" and cannot be asked "which addresses do you have?", and
+  the graph needs the opposite: it builds its scope first, because an edge can only
+  be kept once both ends are known to belong. Deriving the set from a range would
+  mean probing every address in the rectangle — `rows × columns` however sparse the
+  sheet, and real models are sparse and wide.
+
+  `sheetScope` and `including` are retained as defaulted parameters, because
+  SwiftXLSX's `init(sheet:including:)` is built on both.
+
+  Nothing else changed: the traversal, Kahn's sort, the cycle detection and the
+  whole-column range intersection are the same code.
+
+  SwiftXLSX keeps `init(workbook:)`, `init(sheet:including:)` and
+  `init(workbook:including:)` as an extension over this, so its callers are
+  unaffected.
+
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
