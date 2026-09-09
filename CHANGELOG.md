@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-08
+
+### Removed
+
+- **`enum SwiftExcelCore` and its `version` constant.** Scaffold residue, and it had
+  started costing something.
+
+  It shadowed the module name, so `SwiftExcelCore.DependencyGraph` did not compile —
+  it resolved to a member of the enum, with an error message
+  (*"not a member type of enum 'SwiftExcelCore.SwiftExcelCore'"*) that explains
+  nothing to anyone who has not already worked it out. The DocC catalogue's own
+  ``` # ``SwiftExcelCore`` ``` title was ambiguous for the same reason.
+
+  It was also **wrong**: `version` read `"0.1.0-dev"` while the package was at
+  0.6.0. A hardcoded string with nothing keeping it in sync with the tag drifts on
+  the first release and then lies quietly. Its only test asserted the literal was
+  non-empty, which cannot fail.
+
+  Nothing in the family referenced it, and neither SwiftXLSX nor BusinessMathExcel
+  has an equivalent — so it was residue rather than a convention. The module
+  documentation it carried already exists, more fully, in the DocC catalogue.
+
+  **Migration:** none expected. If you were reading `SwiftExcelCore.version`, take
+  the version from your dependency graph instead, where it is true.
+
+
 ## [0.6.0] - 2026-09-08
 
 ### Added
