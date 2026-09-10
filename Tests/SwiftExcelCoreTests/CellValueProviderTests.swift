@@ -198,4 +198,29 @@ final class CellValueProviderTests: XCTestCase {
         let cells = SparseCells([CellRef("A1"): .number(10), CellRef("A3"): .number(30)])
         XCTAssertEqual(cells.values(in: range("A1", "A4")), [.number(10), .number(30)])
     }
+
+    // MARK: - Phonetic readings
+
+    /// **The default is what makes this addition safe.** A provider that knows nothing
+    /// about furigana — which is every provider that existed before it — answers `nil`
+    /// without implementing anything, so adding the requirement broke no conformance.
+    func testPhoneticDefaultsToNil() {
+        let provider = SparseCells([CellRef(column: 1, row: 1): .text("山田")])
+        XCTAssertNil(provider.phonetic(at: CellRef(column: 1, row: 1)))
+    }
+
+    /// A provider that does carry readings overrides it, and the override is what callers
+    /// see through the protocol.
+    func testProviderCanSupplyAPhonetic() {
+        struct WithReading: CellValueProvider {
+            func value(at ref: CellRef) -> CellValue? { .text("山田") }
+            func value(at ref: CellRef, inSheet: String) -> CellValue? { value(at: ref) }
+            func lastPopulatedCell() -> CellRef? { CellRef(column: 1, row: 1) }
+            func lastPopulatedCell(inSheet: String) -> CellRef? { lastPopulatedCell() }
+            func values(in range: CellRange) -> [CellValue] { [] }
+            func values(in range: CellRange, inSheet: String) -> [CellValue] { [] }
+            func phonetic(at ref: CellRef) -> String? { "ヤマダ" }
+        }
+        XCTAssertEqual(WithReading().phonetic(at: CellRef(column: 1, row: 1)), "ヤマダ")
+    }
 }

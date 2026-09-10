@@ -17,6 +17,21 @@ public protocol CellValueProvider: Sendable {
     /// - Returns: The cell value, or `nil` if the cell is empty or the sheet does not exist.
     func value(at ref: CellRef, inSheet: String) -> CellValue?
 
+    /// Returns the phonetic reading stored alongside the cell, if the file carried one.
+    ///
+    /// A Japanese workbook records the reading of a name separately from the name: the cell
+    /// says 山田 and an `<rPh>` run says ヤマダ. That is annotation rather than content, so it
+    /// does not belong in ``CellValue`` — the cell's *value* is unchanged by whether anyone
+    /// wrote down how to say it — and it is asked for by reference instead.
+    ///
+    /// **A default implementation returns `nil`**, so a provider that has no phonetic data,
+    /// or does not read a file at all, needs to write nothing. That is what keeps this
+    /// additive: every existing conformance keeps compiling and keeps behaving identically.
+    ///
+    /// - Parameter ref: The cell reference to look up.
+    /// - Returns: The reading, or `nil` when the cell has none.
+    func phonetic(at ref: CellRef) -> String?
+
     /// Returns the values in a range, keeping the range's shape.
     ///
     /// Empty cells read as ``CellValue/blank`` at their own position rather than
@@ -92,6 +107,12 @@ public protocol CellValueProvider: Sendable {
 }
 
 extension CellValueProvider {
+
+    /// No phonetic data. See ``CellValueProvider/phonetic(at:)``.
+    ///
+    /// - Parameter ref: The cell reference to look up.
+    /// - Returns: `nil`, always.
+    public func phonetic(at ref: CellRef) -> String? { nil }
 
     /// Reads a range cell by cell, keeping its shape.
     ///

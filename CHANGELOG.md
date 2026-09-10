@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-10
+
+### Added
+
+- **`CellValueProvider.phonetic(at:)`** — the phonetic reading stored alongside a cell,
+  when the file carried one.
+
+  A Japanese workbook records the reading of a name separately from the name: the cell
+  says 山田 and an `<rPh>` run says ヤマダ. That is annotation rather than content, so it
+  does not belong in `CellValue` — the cell's *value* is unchanged by whether anyone
+  wrote down how to say it — and it is asked for by reference instead.
+
+  **A default implementation returns `nil`**, which is what keeps this additive: a
+  provider with no phonetic data, or one that does not read a file at all, writes
+  nothing and behaves exactly as before. Every existing conformance compiles unchanged;
+  the 229 tests that passed before this change still pass without edits.
+
+  Added so that `PHONETIC` can be bound in SwiftExcelFunctions. It pairs with SwiftXLSX
+  0.23.2, which stopped concatenating those readings into cell values.
+
 ## [0.7.0] - 2026-09-08
 
 ### Removed
