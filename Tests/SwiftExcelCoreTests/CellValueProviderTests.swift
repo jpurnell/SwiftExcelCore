@@ -149,14 +149,27 @@ final class CellValueProviderTests: XCTestCase {
                        "rows 1 and 2 are blank and still occupy their places")
     }
 
-    func testAWholeRowStopsAtTheLastPopulatedColumn() throws {
+    /// A whole row arrives at its full width, which reverses what this asserted.
+    ///
+    /// It read the row back at three columns — as far as the data went. That is the right
+    /// answer for a whole *column*, where keeping the grid means a million values, and the
+    /// wrong one for a row, where it means 16,384 and positions that are actually correct.
+    ///
+    /// Everything that counts positions depends on it: `INDEX` at the twenty-fourth column
+    /// of a row whose data stops at the fourteenth is a blank, not `#REF!`, and
+    /// `COLUMNS($A$1:$XFD$1)` is 16,384 rather than however wide the data happens to be.
+    func testAWholeRowKeepsItsFullWidth() throws {
         let cells = SparseCells([CellRef("A1"): .number(1), CellRef("C1"): .number(3)])
         let wholeRow = CellRange(from: CellRef(column: 1, row: 1),
                                  to: CellRef(column: 16_384, row: 1))
         let matrix = cells.matrix(in: wholeRow)
-        XCTAssertEqual(matrix.count, 3)
         XCTAssertEqual(matrix.rows, 1)
-        XCTAssertEqual(matrix.columns, 3)
+        XCTAssertEqual(matrix.columns, 16_384)
+        // The values are still where they were, with blanks in between.
+        XCTAssertEqual(matrix.elements.first, .number(1))
+        XCTAssertEqual(matrix.elements[1], .blank)
+        XCTAssertEqual(matrix.elements[2], .number(3))
+        XCTAssertEqual(matrix.elements.last, .blank)
     }
 
     /// A range entirely inside the populated area is untouched, blanks and all.

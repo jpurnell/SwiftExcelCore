@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-14
+
+### Changed
+
+- **A whole-row reference keeps its full width instead of being clipped to the data.**
+  `clipped(to:)` pulled `$3:$3` back to the last populated column, on the same reasoning that
+  governs `$B:$B` — that an unbounded reference asks for the data rather than for the grid.
+
+  That reasoning holds for a column, where keeping the grid means 1,048,576 values. It does
+  not hold for a row, which is **16,384 at most** — about a hundred kilobytes.
+
+  And clipping a row was measurably wrong, because everything that counts *positions* depends
+  on the width: `INDEX('Raw'!$C$4:$XFD$4, 24)` answered `#REF!` against a fourteen-column
+  matrix where Excel reads the blank at column Z, and `COLUMNS($A$1:$XFD$1)` answered `0`
+  rather than `16384`. Measured across 46 real workbooks by SwiftExcelFunctions' Excel
+  oracle, that was **every disagreement with Excel that remained** after four other fixes.
+
+  A whole column and a whole sheet still pull back, because there the original argument is
+  exactly right — and the row bound is what makes the whole-sheet case affordable at all.
+
+  Two tests asserted the old behaviour and are reversed rather than deleted, each recording
+  why the decision changed.
+
 ## [0.8.0] - 2026-09-10
 
 ### Added

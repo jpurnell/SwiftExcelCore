@@ -265,10 +265,33 @@ final class CellRangeTests: XCTestCase {
                        CellRange(from: CellRef("B1"), to: CellRef(column: 2, row: 40)))
     }
 
-    func testAWholeRowIsClippedToTheLastPopulatedColumn() {
+    /// A whole row keeps its full width, which reverses what this test used to assert.
+    ///
+    /// It asserted that `$3:$3` was pulled back to the last populated column, on the same
+    /// reasoning that governs `$B:$B` — that an unbounded reference asks for the data rather
+    /// than for the grid. That reasoning holds for a column, where the alternative is
+    /// 1,048,576 values. A row is 16,384 at most.
+    ///
+    /// And clipping it was measurably wrong. `INDEX`, `COLUMNS`, `ROWS` and the lookups
+    /// count positions; a row clipped to the data has the wrong ones. Against 46 real
+    /// workbooks it was every remaining disagreement with Excel — `INDEX` answering `#REF!`
+    /// where Excel reads a blank, and `COLUMNS($A$1:$XFD$1)` answering `0` rather than
+    /// `16384`.
+    func testAWholeRowKeepsItsFullWidth() {
         let wholeRow = CellRange(from: CellRef("A3"), to: CellRef(column: 16_384, row: 3))
-        XCTAssertEqual(wholeRow.clipped(to: CellRef("F40")),
-                       CellRange(from: CellRef("A3"), to: CellRef(column: 6, row: 3)))
+        XCTAssertEqual(wholeRow.clipped(to: CellRef("F40")), wholeRow)
+        XCTAssertEqual(wholeRow.clipped(to: nil), wholeRow, "and needs no data to do it")
+    }
+
+    /// A whole sheet still pulls back in both directions.
+    ///
+    /// The row bound is what makes it affordable, and 16,384 columns times a million rows is
+    /// the case the clipping exists for.
+    func testAWholeSheetIsStillClipped() {
+        let wholeSheet = CellRange(from: CellRef("A1"),
+                                   to: CellRef(column: 16_384, row: 1_048_576))
+        XCTAssertEqual(wholeSheet.clipped(to: CellRef("F40")),
+                       CellRange(from: CellRef("A1"), to: CellRef(column: 6, row: 40)))
     }
 
     func testAnUnboundedRangeOverAnEmptySheetIsNothing() {
