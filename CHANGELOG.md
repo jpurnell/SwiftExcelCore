@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-17
+
+### Added
+
+- **`CellValue.lambda(parameters:body:captured:)`** — a function as a value. `LAMBDA` makes
+  functions first-class in Excel, and three legal shapes cannot be expressed without it: a
+  lambda **returned** by a lambda, **bound** by a `LET`, or **chosen** by an `IF`. Each would
+  otherwise evaluate to something plausible rather than to an error, which is the failure a
+  workbook checker cannot afford — it reports on other people's files, and a class of formulas
+  read wrongly and silently is worse than one it refuses out loud.
+
+  The `captured` frame is not decoration. `LAMBDA(x, LAMBDA(y, x+y))` returns a function that
+  must remember `x`; a lambda without a captured frame is not a closure, and currying under
+  one does not fail loudly — it returns the wrong answer.
+
+- **`ExcelError.calc` (`#CALC!`)** — what Excel shows for a formula that cannot produce a
+  value, most often a `LAMBDA` that was never called. Without it a lambda in a cell had to
+  become `#VALUE!`, which is a different thing and says the wrong one.
+
+### Breaking
+
+- `CellValue` gains a case, so every exhaustive `switch` over it needs one more arm. Taken
+  deliberately, at a minor version, and after the measured demand had already shipped without
+  it — see `PROPOSAL_lambda.md` §7 and §12 in SwiftExcelFunctions.
+
+
 ## [0.10.0] - 2026-09-17
 
 ### Added
