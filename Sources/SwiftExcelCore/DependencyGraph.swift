@@ -361,6 +361,12 @@ public struct DependencyGraph: Sendable {
             return args.flatMap {
                 extractReferences(from: $0, inSheet: inSheet, populated: populated)
             }
+        case .call(let callee, let args):
+            // The callee is an expression and may hold references of its own — a lambda's
+            // body can read the sheet. Walking only the arguments would miss them.
+            return ([callee] + args).flatMap {
+                extractReferences(from: $0, inSheet: inSheet, populated: populated)
+            }
         }
     }
 

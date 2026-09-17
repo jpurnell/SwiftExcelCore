@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-17
+
+### Added
+
+- **`FormulaAST.call(_:_:)`** — a call whose callee is an expression rather than a name.
+  `function(_:_:)` names what it calls, which covers every formula Excel had before `LAMBDA`,
+  and does not cover the immediately-invoked form:
+
+  ```
+  LAMBDA(f, n, IF(n<=0, 0, 1 + f(f, n-1)))(LAMBDA(f, n, …), 4094)
+  ```
+
+  Not a curiosity. A `LAMBDA` cannot call itself by name without a defined name, and a defined
+  name is a manual step — so self-application is how a recursive lambda is written without one,
+  and it is what the conformance workbook used to measure Excel's 4,096-invocation limit. A
+  corpus workbook writes one for a Box–Muller normal draw, which is how we know Excel accepts
+  the form. Currying needs it too: `add(3)(4)` has no name between its two calls.
+
+  Deliberately not `function("", …)`. Every `case .function(let name, _)` downstream keys off
+  the name, and an empty one would make all of them wrong in the same silent way.
+
+### Breaking
+
+- `FormulaAST` gains a case, so every exhaustive `switch` over it needs one more arm.
+
+
 ## [0.11.0] - 2026-09-17
 
 ### Added
