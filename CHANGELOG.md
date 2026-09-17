@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-17
+
+### Added
+
+- **`NamedRangeTarget.unparsed(String)`** — a refers-to this package could not read, kept
+  exactly as the file wrote it.
+
+  **The case that makes a defined name survive a round trip.** SwiftXLSX's writer emits no
+  `<definedName>` at all today, and the fix chosen in
+  `SwiftExcelFunctions/project/plans/proposals/PROPOSAL_defined_names.md` reconstructs the
+  refers-to text *from the target* rather than keeping a copy of the original beside it —
+  one fact, one place, nothing that can drift.
+
+  That is only safe if the target can say everything a name can be, and the previous fallback
+  could not. A refers-to the resolver failed to parse became `.formula(.text(raw))`, which
+  claims the name **is a text constant**. Measured:
+
+  ```
+  .text("Expenditures!$D:$D")  →  "Expenditures!$D:$D"   a range becomes a caption
+  .text("42")                  →  "42"                   a number becomes a string
+  ```
+
+  Neither is a formatting loss; both change what the name *is*. And it is not hypothetical —
+  a whole-column name evaluates to its own text today, which is why `SUMIFS(amounts, …)`
+  answers zero over 1,058 cells in one corpus workbook.
+
+  `.unparsed` is the honest alternative, and the one target whose round trip is exact by
+  construction: reproducing it is the identity function. A reader may then parse only what it
+  can prove it reproduces, and everything else is still returned unchanged.
+
+- **`NamedRange.isHidden` and `NamedRange.attributes`** — what a *file* says about a name,
+  beyond what an evaluator needs from it.
+
+  Measured across 2,240 workbooks: 1,022 define names, 161,901 names in all, and **74,992 of
+  those — 46% — are hidden.** A round trip that kept the target and dropped `hidden` would not
+  lose a nicety; it would surface half of every Name Manager, filter ranges and print
+  scaffolding and all. On the largest model in the corpus — 47,106 names — that is twenty
+  thousand names appearing where none were visible.
+
+  `attributes` holds the rest verbatim (`comment`, `description`, `shortcutKey`, …) rather
+  than modelling them: interpreting them is a separate job, and dropping them silently is a
+  change to a workbook nobody asked for.
+
+### Changed
+
+- **`NamedRangeTarget` gains a case, so exhaustive switches over it must handle
+  `.unparsed`.** The honest answer for an evaluator is `#NAME?` — the name exists in the file
+  and this package does not know what it points at, which is what `#NAME?` says.
+
+  Both new `NamedRange` fields default, so every existing initialiser call compiles unchanged.
+
+
 ## [0.9.0] - 2026-09-14
 
 ### Changed
@@ -275,7 +327,12 @@ no change hides inside a large diff. Improvements come after, in their own commi
 Foundation only, and intended to stay that way: three packages depend on this one, so a
 dependency taken here is taken by all of them.
 
-[Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.2.0...v0.3.0

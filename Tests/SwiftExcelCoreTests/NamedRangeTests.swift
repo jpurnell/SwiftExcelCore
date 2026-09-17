@@ -313,3 +313,81 @@ final class NamedRangeTests: XCTestCase {
         resolver.resolve(name, inSheet: nil)
     }
 }
+
+// MARK: - What a file says, not only what an evaluator needs
+
+/// The parts of a name that exist so a workbook can be written back as it was read.
+///
+/// `PROPOSAL_defined_names.md` (SwiftExcelFunctions) chose to hold a name **once** — the
+/// target is the name's meaning, and a writer reproduces the refers-to text from it rather
+/// than keeping a copy alongside. These tests pin the two things that decision needs from
+/// this type: a target that can admit it did not understand, and the attributes a round trip
+/// would otherwise drop.
+final class NamedRangeFidelityTests: XCTestCase {
+
+    /// `.unparsed` is exact by construction: reproducing it is the identity.
+    ///
+    /// This is what makes reconstruction safe at all. Anything the reader cannot prove it can
+    /// reproduce goes here, so byte-exactness is available for every name from the start and
+    /// each parsed shape is an opt-in promise rather than a hope.
+    func testUnparsedKeepsItsTextExactly() {
+        let shapes = [
+            "Expenditures!$D:$D",
+            "'2018 - Sorted by Area'!$J$2:$J$333",
+            "_xlfn.LAMBDA(_xlpm.x,_xlpm.x+1)",
+            "OFFSET(Sheet1!$A$1,0,0,COUNTA(Sheet1!$A:$A),1)",
+        ]
+        for text in shapes {
+            guard case .unparsed(let kept) = NamedRangeTarget.unparsed(text) else {
+                return XCTFail("expected .unparsed for \(text)")
+            }
+            XCTAssertEqual(kept, text)
+        }
+    }
+
+    /// `.unparsed` is a different statement from `.formula(.text(…))`, which is the point.
+    ///
+    /// The old fallback claimed a name **was** a text constant. The two must not compare
+    /// equal, or a reader could keep making the old claim and nothing would notice.
+    func testUnparsedIsNotATextConstant() {
+        XCTAssertNotEqual(NamedRangeTarget.unparsed("42"),
+                          NamedRangeTarget.formula(.text("42")))
+        XCTAssertNotEqual(NamedRangeTarget.unparsed("Expenditures!$D:$D"),
+                          NamedRangeTarget.formula(.text("Expenditures!$D:$D")))
+    }
+
+    /// Hidden is 46% of the names in a real corpus, so it is carried rather than inferred.
+    func testHiddenAndAttributesSurvive() {
+        let filter = NamedRange(
+            name: "_xlnm._FilterDatabase",
+            reference: .unparsed("Expenditures!$A$2:$W$2446"),
+            scope: .sheet("Expenditures"),
+            isHidden: true,
+            attributes: ["comment": "set by the filter"])
+
+        XCTAssertTrue(filter.isHidden)
+        XCTAssertEqual(filter.attributes["comment"], "set by the filter")
+        XCTAssertEqual(filter.scope, .sheet("Expenditures"))
+    }
+
+    /// The defaults keep every existing caller compiling and behaving as before.
+    func testAPlainNameIsVisibleAndUnadorned() {
+        let name = NamedRange(name: "rate", reference: .cell(CellRef("B1")))
+        XCTAssertFalse(name.isHidden)
+        XCTAssertTrue(name.attributes.isEmpty)
+        XCTAssertEqual(name.scope, .workbook)
+    }
+
+    /// Two names differing only in what a round trip would drop are not the same name.
+    ///
+    /// `Equatable` is what a fidelity test compares, so if `isHidden` were left out of it, a
+    /// round-trip check would pass while un-hiding half a workbook.
+    func testEqualityNoticesTheFidelityFields() {
+        let visible = NamedRange(name: "n", reference: .cell(CellRef("A1")))
+        let hidden = NamedRange(name: "n", reference: .cell(CellRef("A1")), isHidden: true)
+        let annotated = NamedRange(name: "n", reference: .cell(CellRef("A1")),
+                                   attributes: ["description": "x"])
+        XCTAssertNotEqual(visible, hidden)
+        XCTAssertNotEqual(visible, annotated)
+    }
+}
