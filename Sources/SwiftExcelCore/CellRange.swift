@@ -17,11 +17,125 @@ public struct CellRange: Equatable, Hashable, Sendable {
         self.end = CellRef(to)
     }
 
-    /// Parses a range string like `A1:B10` or a single cell like `A1`.
+    /// Parses a range string like `A1:B10`, a single cell like `A1`, or a whole span
+    /// like `A:A`, `$D:$D`, `1:1` or `2:5`.
+    ///
+    /// ## The whole-span forms, and what this used to do with them
+    ///
+    /// Each half went to ``CellRef/init(_:)``, which defaults a missing row to 1 and a
+    /// missing column to 0. So `A:A` came back as the single cell `A1`, `A:C` as a plausible
+    /// 1×3, and — worse — `1:1` and `2:5` as ranges in **column zero**, which is not a
+    /// column: they are 1-based. `CellRange("2:5").rowCount` answered 4 while every
+    /// reference it enumerated was off the grid, so the count looked right and the cells
+    /// were unusable.
+    ///
+    /// A whole span is now recognised: a column span runs to the last row, a row span to the
+    /// last column, and the `$` markers are carried so a writer can put back what it read.
+    ///
+    /// ## Order is normalised
+    ///
+    /// `C:A` becomes `A:C`. Excel writes spans in ascending order, so this only arises from a
+    /// malformed file — and the alternative is a range whose `start` is past its `end`, where
+    /// ``cells`` builds `3...1` and **traps**. Answering a well-formed range is a better
+    /// response to bad input than bringing the process down.
+    ///
+    /// - Parameter reference: A range, a cell, or a whole span. An unparseable string yields
+    ///   `A1` rather than trapping — this is called with whatever a file said, and an empty
+    ///   string used to index an empty array.
     public init(_ reference: String) {
         let parts = reference.split(separator: ":", maxSplits: 1)
-        self.start = CellRef(String(parts[0]))
-        self.end = parts.count > 1 ? CellRef(String(parts[1])) : CellRef(String(parts[0]))
+        guard let head = parts.first else {
+            // `""` and `":"` both split to nothing. This used to be `parts[0]`.
+            self.start = CellRef(column: 1, row: 1)
+            self.end = CellRef(column: 1, row: 1)
+            return
+        }
+        guard parts.count > 1 else {
+            self.start = CellRef(String(head))
+            self.end = CellRef(String(head))
+            return
+        }
+        // Only with a colon: a bare `A` is a cell reference this initialiser has always
+        // read as `A1`, and reading it as a whole column would change an answer nobody
+        // asked about.
+        if let span = CellRange.wholeSpan(from: head, to: parts[1]) {
+            self.start = span.start
+            self.end = span.end
+            return
+        }
+        self.start = CellRef(String(head))
+        self.end = CellRef(String(parts[1]))
+    }
+
+    /// A whole column or a whole row, as the range it names.
+    ///
+    /// `$D:$D` is every cell of column D and `$3:$3` is every cell of row 3. Excel writes
+    /// both, and each half carries a letter *or* a digit but never both — which is exactly
+    /// why a parser built on ``CellRef/init(_:)`` cannot read them.
+    ///
+    /// Exposed rather than kept private because this rule had **two implementations** and
+    /// only one was right: `DefinedNameResolver` in SwiftXLSX had worked it out for defined
+    /// names, which is why whole-column names round-tripped across 161,901 of them while
+    /// `CellRange(_:)` was answering `A1`. One rule, one place.
+    ///
+    /// - Parameters:
+    ///   - start: The half before the colon.
+    ///   - end: The half after it.
+    /// - Returns: The range, or `nil` when the pair is not a whole span.
+    public static func wholeSpan(from start: Substring, to end: Substring) -> CellRange? {
+        if let first = columnNumber(start), let last = columnNumber(end) {
+            let ascending = first <= last
+            let (low, high) = ascending ? (first, last) : (last, first)
+            let (lowAbsolute, highAbsolute) = ascending
+                ? (start.hasPrefix("$"), end.hasPrefix("$"))
+                : (end.hasPrefix("$"), start.hasPrefix("$"))
+            return CellRange(
+                from: CellRef(column: low, row: 1,
+                              absoluteColumn: lowAbsolute, absoluteRow: false),
+                to: CellRef(column: high, row: CellRef.lastOnSheet.row,
+                            absoluteColumn: highAbsolute, absoluteRow: false))
+        }
+        if let first = rowNumber(start), let last = rowNumber(end) {
+            let ascending = first <= last
+            let (low, high) = ascending ? (first, last) : (last, first)
+            let (lowAbsolute, highAbsolute) = ascending
+                ? (start.hasPrefix("$"), end.hasPrefix("$"))
+                : (end.hasPrefix("$"), start.hasPrefix("$"))
+            return CellRange(
+                from: CellRef(column: 1, row: low,
+                              absoluteColumn: false, absoluteRow: lowAbsolute),
+                to: CellRef(column: CellRef.lastOnSheet.column, row: high,
+                            absoluteColumn: false, absoluteRow: highAbsolute))
+        }
+        return nil
+    }
+
+    /// A fragment that is nothing but a column, as its number.
+    ///
+    /// - Parameter fragment: One half of a span, with or without its `$`.
+    /// - Returns: The column number, or `nil` if the fragment is not all letters or names
+    ///   a column past the grid's last.
+    private static func columnNumber(_ fragment: Substring) -> Int? {
+        let letters = fragment.hasPrefix("$") ? fragment.dropFirst() : fragment
+        guard !letters.isEmpty, letters.allSatisfy(\.isLetter) else { return nil }
+        var column = 0
+        for character in letters {
+            guard let scalar = character.uppercased().unicodeScalars.first else { return nil }
+            column = column * 26 + Int(scalar.value) - 64
+        }
+        return (1...CellRef.lastOnSheet.column).contains(column) ? column : nil
+    }
+
+    /// A fragment that is nothing but a row, as its number.
+    ///
+    /// - Parameter fragment: One half of a span, with or without its `$`.
+    /// - Returns: The row number, or `nil` if the fragment is not all digits or names a row
+    ///   past the grid's last.
+    private static func rowNumber(_ fragment: Substring) -> Int? {
+        let digits = fragment.hasPrefix("$") ? fragment.dropFirst() : fragment
+        guard !digits.isEmpty, digits.allSatisfy(\.isNumber),
+              let row = Int(digits) else { return nil }
+        return (1...CellRef.lastOnSheet.row).contains(row) ? row : nil
     }
 
     /// The string representation, e.g. `A1:B10` or `A1` for single-cell ranges.

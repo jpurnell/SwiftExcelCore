@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-19
+
+### Fixed
+
+- **`CellRange(_: String)` could not read a whole span, and produced references off the
+  grid.** It split on the colon and handed each half to `CellRef(_:)`, which defaults a
+  missing row to 1 and a missing column to **0**:
+
+  | written | was | meant |
+  |---|---|---|
+  | `A:A` | the single cell `A1` | column A, every row |
+  | `A:C` | a plausible 1×3 | three columns, every row |
+  | `1:1` | column **0**, row 1 | row 1, every column |
+  | `2:5` | column **0**, rows 2–5 | rows 2–5, every column |
+
+  The column cases were wrong. The row cases were worse: columns are 1-based, so
+  `CellRange("2:5").rowCount` answered 4 while every reference it enumerated was off the
+  grid — the count looked right and the cells could not exist.
+
+  `WorksheetParser` in SwiftXLSX builds ranges this way from four attributes read out of real
+  files — an array formula's `ref`, `autoFilter`, `mergeCell`, and a data validation's
+  `sqref`. A data validation over a whole column is ordinary.
+
+- **`CellRange("")` trapped.** `split` returns nothing for an empty string and the initialiser
+  indexed `parts[0]`. It is non-failable and called with whatever a file said, so it now
+  answers `A1` — the point being that it answers at all.
+
+- **A descending span no longer traps.** `C:A` normalises to `A:C`, carrying each `$` with its
+  own end. Excel writes spans ascending, so this only arises from a malformed file — where the
+  alternative was a range whose `start` is past its `end` and a `cells` call building `3...1`.
+
+### Added
+
+- **`CellRange.wholeSpan(from:to:)`**, public, returning the range a whole-span pair names or
+  `nil` if the pair is not one.
+
+  Exposed because this rule had **two implementations and only one was right**.
+  `DefinedNameResolver` in SwiftXLSX had worked it out for defined names, which is why
+  whole-column names round-tripped across 161,901 of them while `CellRange(_:)` was answering
+  `A1` — and why nobody found the defect: the path that mattered most had quietly been fixed
+  already, somewhere else. That resolver now delegates here.
+
 ## [0.13.0] - 2026-09-19
 
 ### Added
