@@ -71,6 +71,35 @@ public indirect enum FormulaAST: Equatable, Hashable, Sendable {
     /// keys off the name — the registry, the serializer, the recogniser — and handing them an
     /// empty one would make all of them wrong in the same silent way.
     case call(FormulaAST, [FormulaAST])
+
+    /// An array constant written in the formula: `{1,2,3;4,5,6}`.
+    ///
+    /// Rows of elements, outer to inner — `{1,2;3,4}` is `[[1, 2], [3, 4]]`. A comma separates
+    /// columns and a semicolon separates rows, which is the stored file format's spelling and
+    /// not the user's: a workbook saved in a locale that displays `\` for the row separator
+    /// still holds `;` in the XML, so this is the only spelling a reader ever sees.
+    ///
+    /// ## Every row has the same width, and the parser is what guarantees it
+    ///
+    /// Excel refuses a ragged constant — `{1,2;3}` is a syntax error, not a 2×2 with a hole —
+    /// so a value of this case is always rectangular. Nothing downstream re-checks it, and an
+    /// array built by hand that breaks the rule will reach a `CellMatrix` initialiser that
+    /// rejects it rather than a silent mis-shape.
+    ///
+    /// ## Only constants go inside
+    ///
+    /// Numbers, text, booleans and errors. No references, no names, no function calls and no
+    /// nested arrays — Excel rejects all of them, and so does the parser. The element type is
+    /// `FormulaAST` anyway because there is no smaller type worth defining for four cases, and
+    /// because a negative number arrives as one: `{-1,2}` is lexed as a minus and a number,
+    /// folded to `.number(-1)` before it lands here.
+    ///
+    /// ## Why this was missing
+    ///
+    /// The lexer had no `{`, `}` or `;` token at all, so `{1,2,3}` failed at the first brace
+    /// and the gap looked like a decision. It was not one. Found from the side, while writing
+    /// a test for something else that wanted a two-row array and could not spell one.
+    case arrayConstant([[FormulaAST]])
 }
 
 // MARK: - Convenience Builders

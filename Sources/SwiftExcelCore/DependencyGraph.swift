@@ -339,6 +339,14 @@ public struct DependencyGraph: Sendable {
             // An argument that is not there reads nothing.
             return []
 
+        case .arrayConstant:
+            // An array constant holds only constants — Excel rejects a reference inside one —
+            // so it reads nothing however large it is. Not recursed into, deliberately: the
+            // parser is what guarantees the contents, and walking them here would suggest a
+            // reference could be found, which would be a claim about the grammar that this
+            // file is the wrong place to make.
+            return []
+
         case .add(let l, let r),
              .subtract(let l, let r),
              .multiply(let l, let r),

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-19
+
+### Added
+
+- **`FormulaAST.arrayConstant([[FormulaAST]])`** — an array constant written in the formula,
+  `{1,2,3;4,5,6}`, held as rows of elements. A comma separates columns and a semicolon
+  separates rows, which is the stored file format's spelling rather than the user's: a
+  workbook saved in a locale that displays `\` for the row separator still holds `;` in the
+  XML, so it is the only spelling a reader ever sees.
+
+  Every row has the same width, and **the parser is what guarantees it** — Excel refuses
+  `{1,2;3}` as a syntax error rather than reading a 2×2 with a hole. Only constants go inside:
+  numbers, text, booleans and errors, with no references, names, calls or nested arrays. The
+  element type is `FormulaAST` regardless, because a negative number arrives as a minus and a
+  number and is folded to `.number(-1)` before it lands here.
+
+  `DependencyGraph` reads nothing from one, and deliberately does not recurse into it: the
+  grammar is the parser's guarantee, and walking the elements here would imply a reference
+  could be found.
+
+  Source-breaking for any exhaustive `switch` over `FormulaAST` outside this package.
+
 ## [0.12.0] - 2026-09-17
 
 ### Added
