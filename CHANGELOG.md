@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-20
+
+### Added
+
+- **`PivotTableLayout`, and `CellValueProvider.pivotTables()`** — the vocabulary
+  `GETPIVOTDATA` needs.
+
+  **It reads a rendered table.** A pivot table's values are written onto the worksheet and
+  cached there like any other cell, so the function is a lookup rather than a recomputation:
+  it aggregates nothing and `xl/pivotCache/` is never opened. One corpus workbook carries 76
+  cache parts and needs none of them. The type therefore carries **no values** — only where
+  the table sits and what its data fields are called.
+
+  **The grand total is found structurally**: the last row of the range when `rowGrandTotals`
+  is set, and none when it is not. Not by looking for a row labelled `"Grand Total"`.
+
+  That was measured, and the label would have been wrong.
+  `Dot Com YTD Performance Report 6 20.xlsx` carries pivots both ways, and the one with
+  `rowGrandTotals="0"` ends on a row reading **`"KEY Total"`** — a *subtotal*. A match for
+  `"…Total"` would have taken it for a grand total and returned the wrong number quietly.
+  Reading no labels at all avoids that and the locale trap together: the same label is
+  `"Gesamtergebnis"` in German, and a rule that works on an English corpus and fails on the
+  first German workbook is the kind that ships.
+
+  `pivotTables()` defaults to none, as `sheetNames()` and `phonetic(at:)` do, so every
+  existing conformance keeps compiling and behaving identically.
+
 ## [0.15.0] - 2026-09-20
 
 ### Added
@@ -481,7 +508,8 @@ no change hides inside a large diff. Improvements come after, in their own commi
 Foundation only, and intended to stay that way: three packages depend on this one, so a
 dependency taken here is taken by all of them.
 
-[Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.12.0...v0.13.0

@@ -47,6 +47,20 @@ public protocol CellValueProvider: Sendable {
     /// - Returns: The sheet names in order, or none where the provider has no notion of them.
     func sheetNames() -> [String]
 
+    /// The pivot tables this workbook renders, for `GETPIVOTDATA`.
+    ///
+    /// **`GETPIVOTDATA` reads a rendered table**, so what it needs is where each pivot sits
+    /// and what its data fields are called — never the pivot cache, and never any aggregation.
+    /// The values are read back through this same provider from the sheet.
+    ///
+    /// **A default returns none**, as ``sheetNames()`` and ``phonetic(at:)`` do: every
+    /// existing conformance keeps compiling and behaving identically, and a provider that
+    /// does not model a workbook answers `GETPIVOTDATA` with `#REF!` — which is what it
+    /// answers today.
+    ///
+    /// - Returns: The layouts, or none where the provider has no notion of them.
+    func pivotTables() -> [PivotTableLayout]
+
     /// Returns the values in a range, keeping the range's shape.
     ///
     /// Empty cells read as ``CellValue/blank`` at their own position rather than
@@ -127,6 +141,11 @@ extension CellValueProvider {
     ///
     /// - Returns: An empty list.
     public func sheetNames() -> [String] { [] }
+
+    /// No pivot tables. See ``CellValueProvider/pivotTables()``.
+    ///
+    /// - Returns: An empty list.
+    public func pivotTables() -> [PivotTableLayout] { [] }
 
     /// No phonetic data. See ``CellValueProvider/phonetic(at:)``.
     ///
