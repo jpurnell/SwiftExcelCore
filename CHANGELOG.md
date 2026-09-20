@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-20
+
+### Added
+
+- **A reference can span sheets.** `'Q1:Q4'!B7` is Excel's 3-D reference, and this package
+  could not express one — `SheetReference` held a single `sheetName`, so a span matched no
+  sheet and read as empty.
+
+  The span was arriving intact all along: a parser reading `'first:last'!A1` puts
+  `first:last` into `sheetName` whole. `span` reads the two ends back out. Excel forbids `:`
+  in a sheet name — one of the seven characters a sheet may not contain — so splitting on it
+  identifies a span rather than guessing at someone's naming. A malformed spelling is not
+  half a span: an empty end, or more than two names, reads as none.
+
+- **`CellValueProvider.sheetNames()`**, because expanding a span needs the workbook's order.
+  A span covers every sheet *positionally* between its ends, and no amount of reading the
+  names will say what sits there.
+
+  **Additive**, in the way `phonetic(at:)` already was: the default returns none, so every
+  existing conformance compiles and behaves exactly as before, and a provider that does not
+  model a workbook — a test double, a single sheet — reads a 3-D reference as empty rather
+  than failing. It has no order to give, and empty is the honest answer.
+
+  `SheetReference.sheets(in:)` expands a reference against a provider. An end that names no
+  sheet spans nothing, matching what a provider already does with an absent sheet. Quietly
+  dropping to one end would recreate the bug this replaces.
+
+### Why now
+
+A corpus run over 300 real workbooks found **9,958 cells** in one of them summing across
+spans of sheets — `SUM('8887997613:8887997618'!DL62)`, a sheet per account. The package
+answered **28** where Excel answered **47**.
+
+The failure was silent rather than loud, which is why it had survived: the terms naming a
+single sheet resolved perfectly, so the total was a plausible number that was merely wrong.
+Nothing errored and nothing refused. With this, that workbook agrees with Excel on all
+**1,210,790** of its comparable cells.
+
 ## [0.14.0] - 2026-09-19
 
 ### Fixed
@@ -443,7 +481,12 @@ no change hides inside a large diff. Improvements come after, in their own commi
 Foundation only, and intended to stay that way: three packages depend on this one, so a
 dependency taken here is taken by all of them.
 
-[Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.14.0...v0.15.0
+[0.14.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.13.0...v0.14.0
+[0.13.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.7.0...v0.8.0
