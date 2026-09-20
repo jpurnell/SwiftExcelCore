@@ -32,6 +32,21 @@ public protocol CellValueProvider: Sendable {
     /// - Returns: The reading, or `nil` when the cell has none.
     func phonetic(at ref: CellRef) -> String?
 
+    /// The workbook's sheets, in the order the file lists them.
+    ///
+    /// **A 3-D reference needs this and nothing else does.** `'Q1:Q4'!B7` covers every sheet
+    /// positionally between its ends, so the span cannot be expanded from the names alone —
+    /// only the workbook knows what sits between `Q1` and `Q4`.
+    ///
+    /// **A default returns none**, which keeps the addition additive in the way
+    /// ``phonetic(at:)`` already is: every existing conformance compiles and behaves exactly
+    /// as before, and a provider that does not model a workbook — a test double, a single
+    /// sheet — reads a 3-D reference as empty rather than failing. An empty answer is the
+    /// honest one there; it has no order to give.
+    ///
+    /// - Returns: The sheet names in order, or none where the provider has no notion of them.
+    func sheetNames() -> [String]
+
     /// Returns the values in a range, keeping the range's shape.
     ///
     /// Empty cells read as ``CellValue/blank`` at their own position rather than
@@ -107,6 +122,11 @@ public protocol CellValueProvider: Sendable {
 }
 
 extension CellValueProvider {
+
+    /// No sheets. See ``CellValueProvider/sheetNames()``.
+    ///
+    /// - Returns: An empty list.
+    public func sheetNames() -> [String] { [] }
 
     /// No phonetic data. See ``CellValueProvider/phonetic(at:)``.
     ///
