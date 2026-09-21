@@ -174,6 +174,41 @@ final class PivotTableAxisTests: XCTestCase {
                      "a field really named `Values` is not the pseudo-field")
     }
 
+    // MARK: The grand total column
+
+    /// **The same structural rule as the row, measured rather than inferred from symmetry.**
+    ///
+    /// `pivotTable50` of the corpus workbook, at `B41:H45` with `colGrandTotals` left to its
+    /// default, writes `"Grand Total"` into `H42` and the overall figure into `H45`.
+    func testTheGrandTotalColumnIsTheLastOneWhenThereIsOne() {
+        let totals = PivotTableLayout(
+            sheet: "Exec Summary",
+            range: CellRange(from: CellRef("B41"), to: CellRef("H45")),
+            firstHeaderRow: 1, firstDataRow: 2, firstDataCol: 1,
+            dataFields: ["Sum of Subs"], dataFieldSources: ["Subs"],
+            rowFields: [.field("Scenario")], columnFields: [.field("Region")],
+            pageFields: [], pageFieldRowCount: 0,
+            hasRowGrandTotals: true, hasColumnGrandTotals: true)
+        XCTAssertEqual(totals.grandTotalColumn, CellRef("H1").column)
+    }
+
+    /// **`nil` is the common answer, and a real one.** `pivotTable8` has a column axis and
+    /// `colGrandTotals="0"`, so its last column is an ordinary one — `L135` reads a date and
+    /// `L243` a data value. Nothing in it holds the table's overall total, so a call naming no
+    /// column item is asking for a number Excel never rendered.
+    func testThereIsNoGrandTotalColumnWhenTheTableRendersNone() {
+        let noColumnTotal = PivotTableLayout(
+            sheet: "NED Mix",
+            range: CellRange(from: CellRef("C134"), to: CellRef("L243")),
+            firstHeaderRow: 1, firstDataRow: 2, firstDataCol: 4,
+            dataFields: ["Sum of Subs"], dataFieldSources: ["Subs"],
+            rowFields: [.field("Scenario")], columnFields: [.field("FME_Calc")],
+            pageFields: [], pageFieldRowCount: 0,
+            hasRowGrandTotals: true, hasColumnGrandTotals: false)
+        XCTAssertNil(noColumnTotal.grandTotalColumn)
+        XCTAssertEqual(noColumnTotal.grandTotalRow, 243, "the row total is still rendered")
+    }
+
     // MARK: Naming a data field
 
     /// **Excel accepts the caption or the source field name**, and the corpus needs both.

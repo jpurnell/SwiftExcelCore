@@ -268,4 +268,20 @@ public struct PivotTableLayout: Equatable, Hashable, Sendable {
     public var grandTotalRow: Int? {
         hasRowGrandTotals ? range.end.row : nil
     }
+
+    /// The grand total column, when the table renders one.
+    ///
+    /// The last column of ``range``, and `nil` where ``hasColumnGrandTotals`` is not set —
+    /// the same structural rule as ``grandTotalRow``, and measured the same way rather than
+    /// assumed from the symmetry. `pivotTable50` of the corpus workbook, at `B41:H45` with
+    /// `colGrandTotals` left to its default, writes `"Grand Total"` into `H42` and the overall
+    /// figure into `H45`; the 36 pivots in the same file with `colGrandTotals="0"` end on an
+    /// ordinary data column instead, whose last header is a date.
+    ///
+    /// **`nil` is a real answer here**, and the common one: a table with a column axis and no
+    /// column grand total has no cell holding its overall total, so a `GETPIVOTDATA` naming no
+    /// column item is asking for a number Excel never rendered.
+    public var grandTotalColumn: Int? {
+        hasColumnGrandTotals ? range.end.column : nil
+    }
 }

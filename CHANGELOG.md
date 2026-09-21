@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-20
+
+### Added
+
+- **`PivotTableLayout.grandTotalColumn`** — the last column of the range when
+  `hasColumnGrandTotals` is set, and `nil` where it is not. The same structural rule as
+  `grandTotalRow`, and **measured rather than inferred from the symmetry**: `pivotTable50` of
+  the corpus workbook, at `B41:H45` with `colGrandTotals` left to its default, writes
+  `"Grand Total"` into `H42` and the overall figure into `H45`.
+
+  `nil` is the common answer there and a real one — 36 pivots in the same workbook set
+  `colGrandTotals="0"` and end on an ordinary data column whose last header is a date. Such a
+  table holds its overall total in no cell at all, so a `GETPIVOTDATA` naming no column item is
+  asking for a number Excel never rendered, and refusing is the only honest reply.
+
+
 ## [0.17.0] - 2026-09-20
 
 ### Added
@@ -537,6 +553,7 @@ Foundation only, and intended to stay that way: three packages depend on this on
 dependency taken here is taken by all of them.
 
 [Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.16.0...HEAD
+[0.18.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.14.0...v0.15.0
