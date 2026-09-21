@@ -61,6 +61,29 @@ public protocol CellValueProvider: Sendable {
     /// - Returns: The layouts, or none where the provider has no notion of them.
     func pivotTables() -> [PivotTableLayout]
 
+    /// Whether a cell's formula was entered as an **array formula**.
+    ///
+    /// `Ctrl`+`Shift`+`Enter`, written `<f t="array" ref="…">` in the file. It is the
+    /// difference between two readings of the same text: an array-entered formula evaluates
+    /// its ranges as arrays, and a normally entered one lets Excel **implicitly intersect** a
+    /// range against the formula's own row or column where a single value is expected.
+    ///
+    /// Measured across 300 corpus workbooks: **256 of 2,588,513 formulas are array-entered**,
+    /// so this is rare — and it decides the answer completely wherever it appears. One corpus
+    /// workbook writes `IF(template_year = Report_Year, Report_Quarter, 0)` with the flag set
+    /// and means the whole column; another writes `AND($A10:A44478 > start, …)` without it and
+    /// means row 10 alone.
+    ///
+    /// **A default returns `false`**, as the additions above do: every existing conformance
+    /// keeps compiling, and a provider that does not read a file reports what is overwhelmingly
+    /// the common case.
+    ///
+    /// - Parameters:
+    ///   - ref: The cell to ask about.
+    ///   - sheet: The sheet it sits on.
+    /// - Returns: `true` where the cell's formula was array-entered.
+    func isArrayEntered(at ref: CellRef, inSheet sheet: String) -> Bool
+
     /// Returns the values in a range, keeping the range's shape.
     ///
     /// Empty cells read as ``CellValue/blank`` at their own position rather than
@@ -141,6 +164,14 @@ extension CellValueProvider {
     ///
     /// - Returns: An empty list.
     public func sheetNames() -> [String] { [] }
+
+    /// Not array-entered. See ``CellValueProvider/isArrayEntered(at:inSheet:)``.
+    ///
+    /// - Parameters:
+    ///   - ref: The cell to ask about.
+    ///   - sheet: The sheet it sits on.
+    /// - Returns: `false`, which is the common case and what a provider with no file says.
+    public func isArrayEntered(at ref: CellRef, inSheet sheet: String) -> Bool { false }
 
     /// No pivot tables. See ``CellValueProvider/pivotTables()``.
     ///

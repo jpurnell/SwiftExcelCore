@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-21
+
+### Added
+
+- **`CellValueProvider.isArrayEntered(at:inSheet:)`** — whether a cell's formula was entered
+  with `Ctrl`+`Shift`+`Enter`, written `<f t="array" ref="…">` in the file.
+
+  It decides between two readings of the same text. Array-entered, a range means the whole
+  range; normally entered, Excel **implicitly intersects** it against the formula's own row or
+  column wherever a single value is expected. One corpus workbook writes
+  `IF(template_year = Report_Year, Report_Quarter, 0)` with the flag and means the column;
+  another writes `AND($A10:A44478 > start, …)` without it and means row 10 alone.
+
+  Measured across 300 workbooks: **256 of 2,588,513 formulas carry it.** Rare, and decisive
+  wherever it appears — which is why it is read rather than assumed.
+
+  **A default returns `false`**, as `sheetNames()` and `pivotTables()` do: every existing
+  conformance compiles unchanged and reports the overwhelmingly common case.
+
+
 ## [0.18.0] - 2026-09-20
 
 ### Added
@@ -553,6 +573,7 @@ Foundation only, and intended to stay that way: three packages depend on this on
 dependency taken here is taken by all of them.
 
 [Unreleased]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.16.0...HEAD
+[0.19.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/jpurnell/SwiftExcelCore/compare/v0.15.0...v0.16.0
