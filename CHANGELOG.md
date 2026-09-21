@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`PivotTableLayout` carries the axes**, which is what `GETPIVOTDATA`'s field/item pairs
+  need: `rowFields`, `columnFields`, `pageFields`, `dataFieldSources`, `firstHeaderRow` and
+  `pageFieldRowCount`, plus the geometry derived from them — `captionRow`,
+  `firstDataSheetRow`, `firstDataSheetColumn`, `dataColumns`, `pageFieldRows`,
+  `labelColumn(of:)` and `dataFieldIndex(named:)`.
+
+  Every number was read out of `Dot Com YTD Performance Report 6 20.xlsx`, where 3,574 corpus
+  cells still disagree with Excel, rather than reasoned about. The previous initializer is
+  unchanged and still enough for the two-argument form.
+
+- **`PivotAxisField`**, because one axis entry is not a field. `<field x="-2"/>` is the
+  **values pseudo-field**: it marks where the data field *names* are rendered, which is how a
+  pivot with four data fields stacks them down the rows. 15 of that workbook's 50 pivots carry
+  it. Excel writes the word `Values` into that header cell — a word a real field can also be
+  called — so a list of `String` could not tell the two apart, and this is an enum.
+
+### Fixed
+
+- **`headerRow` was derived rather than read.** It returned `firstDataRow - 1`; the file
+  declares `firstHeaderRow` separately. The two agree on every pivot measured so far, which is
+  exactly the condition under which a derivation survives until the first workbook where it
+  does not. It is now read, and `captionRow` names the row above it — where the data field
+  caption and the column field's name are written when `firstHeaderRow` is not zero.
+
 ## [0.16.0] - 2026-09-20
 
 ### Added
